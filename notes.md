@@ -21,3 +21,26 @@ Requests to paths missing trailing slash get automatically redirected ( so if /f
 
 Go's servemux lacks the ability to route based on method or regexp-based patterns. You'll need a third party option for that
 
+# Customizing HTTP Headers
+
+We normally pass the http.ResponseWriter to another function which sends a response for us
+instead of writing w.Write() and w.WriteHeader()
+
+It's best practice to use the net/http constants for methods and response codes (ex: http.MethodPost and http.StatusMethodNotAllowed)
+
+Go automatically sets three headers for you: Date, Content-Length and Content-Type
+
+The Content-Type is determined automatically (with http.DetectContentType()) to guess the content type.
+NOTE: it detects JSON as plain text so you need to set JSON manually.
+
+Headers can be manipulated with w.Header().Set,.Add,.Del,.Get or by editing the header directly with w.Header()["Key"] = []string{"val"}
+
+# Project Structure
+
+Refer to for best practices: https://peter.bourgon.org/go-best-practices-2016/#repository-structure
+
+## This project's structure
+
+- cmd: Contains application specific code for executable applications in the project.
+- internal: contains non-application-specific code used in the project (ex: validation helpers and SQL db models)
+- ui: user-interface assets (html, CSS, images, javascript)

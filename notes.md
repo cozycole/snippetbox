@@ -44,3 +44,16 @@ Refer to for best practices: https://peter.bourgon.org/go-best-practices-2016/#r
 - cmd: Contains application specific code for executable applications in the project.
 - internal: contains non-application-specific code used in the project (ex: validation helpers and SQL db models)
 - ui: user-interface assets (html, CSS, images, javascript)
+
+# Templates
+
+Go provides templates which are used to break down html documents into dynamic componenets. You define a template like:
+
+```html
+{{define "template-name"}} <p> This is my element </p> {{end}}
+```
+
+and you reference it in code with:
+```
+{{template-name}}
+```

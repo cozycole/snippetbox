@@ -57,3 +57,50 @@ and you reference it in code with:
 ```
 {{template-name}}
 ```
+
+# What is a handler?
+
+A handler is object that implements the following type interface:
+
+```go
+type Hanlder interface {
+    ServeHTTP(ResponseWriter, *Request)
+}
+```
+
+So in its simplest form, we he could create the following handler:
+
+```go
+type home struct {}
+
+func (h *home) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+    w.Write([]byte("This is my home page"))
+}
+
+// Then register it with servemux
+mux := http.NewServerMux()
+mux.Handle("/", &home{})
+```
+
+This is kinda clunky tho since we don't need to make an object just for that. We instead create a function
+
+```go
+func home(w http.ResponseWriter, r *http.Request) {
+    w.Write([]byte("Home page"))
+}
+
+mux := http.NewServerMux()
+mux.HandleFunc("/", home)
+```
+
+The method HandleFunc adds a ServeHTTP method to the function object then registers the handler.
+
+# So what happens when a request is made to the server?
+
+Since the servemux object itself satsifies the handler interface (has a ServeHTTP method), when the server
+receieves a request, it calls the sermux's ServeHTTP() method. Servemux's ServeHTTP method looks up the relevant 
+handler object based on the request URL and then calls that handler's ServeHTTP() method.
+
+**NOTE**
+Requests are handled in parallel so you need to account for race conditions when accessing shared resources.
+

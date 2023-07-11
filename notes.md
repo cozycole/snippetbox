@@ -104,3 +104,36 @@ handler object based on the request URL and then calls that handler's ServeHTTP(
 **NOTE**
 Requests are handled in parallel so you need to account for race conditions when accessing shared resources.
 
+# How to configure settings at runtime
+
+For example, if we want to change the port we are running the application on we need to change the string in main.go.
+
+The best way to do this is use the flag package and parse flag variables when executing the application. The best is to pair that
+with env variables. For example:
+
+```bash
+    export SNIPPETBOX_ADDR=":9999"
+    go run ./cmd/web -addr=$SNIPPETBOX_ADDR
+```
+
+# Logging
+
+You can create different log objects that with configurable prefixes. For example:
+
+```go
+infoLog := log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
+errorLog := log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
+```
+
+The second arg is the prefix and the next is a list of flags for certain values to add (date, time and file name).
+
+Now logging is decoupled, making it simple to manage the logs differently depending on the env. we can log to different
+on disk files like so:
+
+```bash
+go run ./cmd/web >> /tmp/info.log 2>>/tmp/error.log
+```
+
+SIDENOTE: avoid using Panic() and Fatal() outside of your main function.
+
+

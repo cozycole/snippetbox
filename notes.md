@@ -137,3 +137,53 @@ go run ./cmd/web >> /tmp/info.log 2>>/tmp/error.log
 SIDENOTE: avoid using Panic() and Fatal() outside of your main function.
 
 
+# Using MySQL
+
+## Create a new user
+
+We don't want to connect as root, but instead as a db user w/ restricted permissions.
+
+```sql
+CREATE USER 'web'@'localhost';
+GRANT SELECT, INSERT, UPDATE, DELETE ON snippetbox.* TO 'web'@'localhost';
+-- Important: Make sure to swap 'pass' with a password of your own choosing.
+ALTER USER 'web'@'localhost' IDENTIFIED BY 'pass';
+```
+
+now the database can't be accidentally or malisciously deleted.
+
+## Install database driver
+
+We need a driver to act as a middle man between the Go applications and MySQL. We will use go-sql-driver/mysql
+
+```bash
+go get github.com/go-sql-driver/mysql@v1
+```
+@v1 indicates we want the latest version with major release number 1
+
+Doing this generates a line in go.mod that specifies the version of the lib needed.
+
+It also creates go.sum (checksum) which contains checksums representing the content of the required packages. Now I can run 'go mod verify' to verify the checksums of the downloaded packages on my machine match the entries in go.sum. It also helps with recreating dependency env.
+
+CREATE USER 'web'@'localhost';
+GRANT SELECT, INSERT, UPDATE, DELETE ON snippetbox.* TO 'web'@'localhost';
+-- Important: Make sure to swap 'pass' with a password of your own choosing.
+ALTER USER 'web'@'localhost' IDENTIFIED BY 'pass';
+
+## Why use placeholder parameters instead of string interpolation
+
+EX: 
+```sql
+INSERT INTO snippets (title, content, created, expires)
+	VALUES(?, ?, UTC_TIMESTAMP(), DATE_ADD(UTC_TIMESTAMP(), INTERVAL ? DAY))
+```
+then execute the query with:
+
+```go
+result, err := m.DB.Exec(stmt, title, content, expires)
+```
+
+The DB.Exec() method avoids SQL injections by:
+- creating a new prepared statement on the db using the provided sql query string.
+- passing the parameter values to the db, the db then executes the prepared statement using these parameters. Since the params are transmitted later, after the statement has been compiled, the database treats them as pure data, so the intent of the statement can't change.
+- it then deallocates the prepared statement on the database.

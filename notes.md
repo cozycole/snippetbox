@@ -187,3 +187,54 @@ The DB.Exec() method avoids SQL injections by:
 - creating a new prepared statement on the db using the provided sql query string.
 - passing the parameter values to the db, the db then executes the prepared statement using these parameters. Since the params are transmitted later, after the statement has been compiled, the database treats them as pure data, so the intent of the statement can't change.
 - it then deallocates the prepared statement on the database.
+
+## row.Scan()
+```go
+err := row.Scan(&s.ID, &s.Title, &s.Content, &s.Created, &s.Expires)
+```
+
+If any of the values are null in the db, it will raise an error since Go doesn't convert null to its corresponding type. The best thing to do is not allow null values in the database. Otherwise, you need to make the type of the object's attributes sql.NullType, for example sql.NullFloat, to handle that. 
+
+# Go HTML Templating
+
+When invoking a template from another template, you have the ability to specify which data object is passed.
+
+So in the Go code, you 
+
+```go
+// files is list of file paths
+ts, err := template.ParseFiles(files...)
+// is an object with attrs and methods 
+// that can be referenced in the template
+err = ts.ExecuteTemplate(w, "base", data)
+```
+
+Then html 
+
+```html
+{{template "main" .}}
+```
+
+The dot is used to specify the entire object passed to the template
+should be passed (pipelined) to the referenced template. You could specify an attribute to pass instead (e.g. .Name instead of .)
+
+## Template actions and functions
+
+- {{define "name"}} <h1>Name</h1>{{end}} defines a new html template
+- {{template "name" .}} reference a defined html template for insertion (dot passes the data object passed to ExecuteTemplate explained above)
+- {{block "name" .}} HTML {{end}} defines and uses the template
+- {{if .Foo}} C1 {{else}} C2 {{end}} 
+- {{with .Foo}} C1 {{else}} C2 {{end}} sets the dot to .Foo for the content of C1. If .Foo is empty, default to C2 (see view.tmpl for example)
+- {{range .Foo}} C1 {{else}} C2 {{end}} iterate over .Foo, setting dot to each element then render C1. If empty render C2.
+
+NOTE: {{else}} is optional in these cases
+Also range loops can use break/continue
+```html
+{{range .Foo}}
+    // End the loop if the .ID value equals 99.
+    {{if eq .ID 99}}
+        {{break}}
+    {{end}}
+    // ...
+{{end}}
+```

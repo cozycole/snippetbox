@@ -41,6 +41,7 @@ func (m *SnippetModel) Get(id int) (*Snippet, error) {
 	row := m.DB.QueryRow(stmt, id)
 
 	s := &Snippet{}
+	// The driver automatically converts the db types to the correct Go types
 	err := row.Scan(&s.ID, &s.Title, &s.Content, &s.Created, &s.Expires)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -53,5 +54,41 @@ func (m *SnippetModel) Get(id int) (*Snippet, error) {
 }
 
 func (m *SnippetModel) Latest() ([]*Snippet, error) {
-	return nil, nil
+	// returns 10 latest snippets
+	stmt := `
+		SELECT id, title, content, created, expires 
+		FROM snippets
+		WHERE expires > UTC_TIMESTAMP() 
+		ORDER BY created DESC
+		LIMIT 10
+	`
+
+	rows, err := m.DB.Query(stmt)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNoRecord
+		} else {
+			return nil, err
+		}
+
+	}
+	defer rows.Close()
+
+	snippets := []*Snippet{}
+	for rows.Next() {
+		s := &Snippet{}
+		err := rows.Scan(&s.ID, &s.Title, &s.Content, &s.Created, &s.Expires)
+		if err != nil {
+			return nil, err
+		}
+		snippets = append(snippets, s)
+	}
+	// When the rows.Next() loop has finished we call rows.Err() to retrieve any
+	// error that was encountered during the iteration. It's important to
+	// call this - don't assume that a successful iteration was completed
+	// over the whole resultset.
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+	return snippets, nil
 }

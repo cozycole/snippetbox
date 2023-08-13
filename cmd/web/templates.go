@@ -3,6 +3,7 @@ package main
 import (
 	"html/template"
 	"path/filepath"
+	"time"
 
 	"snippetbox.cozycole.net/internal/models"
 )
@@ -13,8 +14,21 @@ import (
 // struct for inserting data and data can come from many sources,
 // you need to combine it all into one
 type templateData struct {
-	Snippet  *models.Snippet
-	Snippets []*models.Snippet
+	CurrentYear int
+	Snippet     *models.Snippet
+	Snippets    []*models.Snippet
+}
+
+func humanDate(t time.Time) string {
+	return t.Format("02 Jan 2006 at 15:04")
+}
+
+// Init global variable which maps string func names to
+// functions to be used within templates (since you can call
+// functions from template). NOTE: The tempalte functions should only
+// return a single value
+var functions = template.FuncMap{
+	"humanDate": humanDate,
 }
 
 // Getting mapping of html page filename to template set for the page
@@ -29,10 +43,15 @@ func newTemplateCache() (map[string]*template.Template, error) {
 	for _, page := range pages {
 		name := filepath.Base(page)
 
-		ts, err := template.ParseFiles("./ui/html/base.tmpl.html")
+		// Register the funcMap before parsing the files
+		ts, err := template.New(name).Funcs(functions).ParseFiles("./ui/html/base.tmpl.html")
+
 		if err != nil {
 			return nil, err
 		}
+
+		// Add all the template partials that could be inserted into
+		// the given page template
 		ts, err = ts.ParseGlob("./ui/html/partials/*.tmpl.html")
 		if err != nil {
 			return nil, err

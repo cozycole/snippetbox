@@ -238,3 +238,82 @@ Also range loops can use break/continue
     // ...
 {{end}}
 ```
+
+
+# Middleware
+
+A Go web app is pretty much a chain of *ServeHTTP()* methods being called one after another
+
+When our server receives a new HTTP request, it calls the servemux's ServeHTTP() method which looks up the relevant handler based on the request URL path, and then calls the handler's ServeHTTP() method. Middleware is just adding more handlers to this chain where it executes some logic (like logging a request or compressing a response) and then calls the ServeHTTP() method of the next handler in the chain.
+
+The standard pattern for creating middleware:
+
+```go
+
+func myMiddleware(next http.Handler) http.Handler {
+    fn := func(w http.ResponseWriter, r *http.Request) {
+        // TODO: Execute our middleware logic here...
+        next.ServeHTTP(w, r)
+    }
+    return http.HandlerFunc(fn)
+}
+```
+
+So myMiddleware is essentially a wrapper around the next handler (think decorator in Python). A closure is created over the next handler by creating an anonymous function. 
+
+http.HandlerFunc is **NOT** a function but a type declaration of the type func(http.ResponseWriter, *http.Request) and we return an instance of this function type. You may notice the function signature doesn't return the http.HandlerFunc type, but that's because http.HandlerFunc fulfills the http.Handler interface by defining a ServeHTTP method with the correct parameters.
+
+This can be abbreviated by:
+
+```go
+func myMiddleware(next http.Handler) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        // TODO: Execute our middleware logic here...
+        next.ServeHTTP(w, r)
+    })
+}
+```
+
+## Example: Setting security headers
+
+```
+Content-Security-Policy: default-src 'self'; style-src 'self' fonts.googleapis.com; font-src fonts.gstatic.com
+Referrer-Policy: origin-when-cross-origin
+X-Content-Type-Options: nosniff
+X-Frame-Options: deny
+X-XSS-Protection: 0
+```
+
+```go
+func secureHeaders(next http.Handler) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        // Note: This is split across multiple lines for readability. You don't
+        // need to do this in your own code.
+        w.Header().Set("Content-Security-Policy",
+            "default-src 'self'; style-src 'self' fonts.googleapis.com; font-src fonts.gstatic.com")
+        w.Header().Set("Referrer-Policy", "origin-when-cross-origin")
+        w.Header().Set("X-Content-Type-Options", "nosniff")
+        w.Header().Set("X-Frame-Options", "deny")
+        w.Header().Set("X-XSS-Protection", "0")
+        next.ServeHTTP(w, r)
+    })
+}
+```
+
+We want this to be executed on every request. So we want to position it before the servemux (the handler who's job it is to execute the correct handler depending on the route of the request).
+
+secureHeaders -> servemux -> application handler
+
+And then when the final function in the chain returns, you can have code execute at each handler on the way back up as seen below.
+
+```go
+func myMiddleware(next http.Handler) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        // Any code here will execute on the way down the chain.
+        next.ServeHTTP(w, r)
+        // Any code here will execute on the way back up the chain.
+    })
+}
+```
+
+Also if you call return before next.ServeHTTP(w,r), it ends the chain. For instance you could do an authorization check, if it fails, return before next and 

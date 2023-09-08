@@ -259,11 +259,35 @@ func myMiddleware(next http.Handler) http.Handler {
 }
 ```
 
-So myMiddleware is essentially a wrapper around the next handler (think decorator in Python). A closure is created over the next handler by creating an anonymous function. 
+and a chain of middleware looks like:
 
-http.HandlerFunc is **NOT** a function but a type declaration of the type func(http.ResponseWriter, *http.Request) and we return an instance of this function type. You may notice the function signature doesn't return the http.HandlerFunc type, but that's because http.HandlerFunc fulfills the http.Handler interface by defining a ServeHTTP method with the correct parameters.
+```go
+func middlewareChain() http.Handler {
+    return myMiddleware1(myMiddleware2(myMiddleware3(myHandler)))
+}
+```
 
-This can be abbreviated by:
+So when explaining middleware functions, it's best to keep the bigger picture in mind. When a request is detected, the http.Server executes the ServeHTTP method of the http.Handler used to initialize the http.Server in main.go. **A http.Handler IS JUST AN OBJECT WITH THE SevreHTTP METHOD (with the correct (http.ResponseWriter, r \*http.Request))!**. This http.Handler that http.Server calls is the one which *middlewareChain()* returns. 
+
+A single middleware function takes an http.Handler which is basically the function that will be called next in the chain. A closure is created over this **next** http.handler by creating an anonymous function which will act as the ServeHTTP. That is because http.HandlerFunc(fn) is **NOT** a function call but a type instantiation of the type func(http.ResponseWriter, *http.Request) and we return an instance of this function type. You may notice the function signature doesn't return the http.HandlerFunc type, but that's because http.HandlerFunc fulfills the http.Handler interface by defining a ServeHTTP method with the correct parameters. This ServeHTTP method simply calls the function passed to http.HandlerFunc when instantiated.
+
+The first expression that's evaluated is *myMiddleware3(myHandler)*. myHandler is an http.Handler, which could be any function wrapped within the ServeHTTP method of an http.Handler, but in most cases its servemux which has a ServeHTTP method that maps request routes URL strings to functions. This function "loads" a call to the myHandler.ServeHTTP into the returned function along with function logic that will execute before myHandler.ServeHTTP is called and after it returns.
+
+Currently the chain looks like this:
+
+myMiddleware3  -> myHandler
+myMiddleware3  <-    |
+
+*myMiddleware3(myHandler)* returns the http.Handler that when ServeHTTP is called, executes the prelogic of myMiddleware3, calls myHandler.ServeHTTP then on return, runs post logic.
+
+This http.Handler with the logic of myMiddleware3, and a call to myHandler, can be passed to myMiddleware2 which will execute prelogic, call the myMiddleware3(myHandler) loaded function, and execute postlogic.
+
+Now the chain looks like this:
+
+myMiddleware2 -> myMiddleware3 -> myHandler
+myMiddleware2 <- myMiddleware3 <-    |
+
+To note, a middleware function can be abbreviated by:
 
 ```go
 func myMiddleware(next http.Handler) http.Handler {
@@ -316,4 +340,25 @@ func myMiddleware(next http.Handler) http.Handler {
 }
 ```
 
-Also if you call return before next.ServeHTTP(w,r), it ends the chain. For instance you could do an authorization check, if it fails, return before next and 
+## Composable middleware chains with justinas/alice package
+
+The library justinas/alice turn
+
+```go
+
+return myMiddleware1(myMiddleware2(myMiddleware3(myHandler)))
+
+```
+
+into
+
+```go
+return alice.New(myMiddleware1, myMiddleware2, myMiddleware3).Then(myHandler)
+```
+
+```bash
+
+go get github.com/justinas/alice@v1
+
+```
+

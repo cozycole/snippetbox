@@ -362,3 +362,6 @@ go get github.com/justinas/alice@v1
 
 ```
 
+## Routers 
+
+We will be using a third party router since the native http.Servemux doesn't support routing based on method (do different things for GET vs POST) or regexp url matching.

@@ -6,8 +6,10 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/julienschmidt/httprouter"
 	"snippetbox.cozycole.net/internal/models"
+	"snippetbox.cozycole.net/internal/validator"
+
+	"github.com/julienschmidt/httprouter"
 )
 
 func (app *application) home(w http.ResponseWriter, r *http.Request) {
@@ -49,19 +51,46 @@ func (app *application) snippetView(w http.ResponseWriter, r *http.Request) {
 	app.render(w, http.StatusOK, "view.tmpl.html", data)
 }
 
+type snippetCreateForm struct {
+	Title   string
+	Content string
+	Expires int
+	validator.Validator
+}
+
 func (app *application) snippetCreatePost(w http.ResponseWriter, r *http.Request) {
 
-	if r.Method != http.MethodPost {
-		w.Header().Set("Allow", http.MethodPost)
-		app.clientError(w, http.StatusMethodNotAllowed)
+	err := r.ParseForm()
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
 		return
 	}
 
-	title := "Heyo"
-	content := "this is some bombass content"
-	expires := 7
+	expires, err := strconv.Atoi(r.PostForm.Get("expires"))
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+	}
 
-	id, err := app.snippets.Insert(title, content, expires)
+	form := snippetCreateForm{
+		Title:   r.PostForm.Get("title"),
+		Content: r.PostForm.Get("content"),
+		Expires: expires,
+	}
+
+	// Since the Validator type is embedded by the snippetCreateForm, we can
+	// call CheckField directly on the object.
+	form.CheckField(validator.NotBlank(form.Title), "title", "This field cannot be blank")
+	form.CheckField(validator.MaxChars(form.Title, 100), "title", "This field cannot be more than 100 characters long")
+	form.CheckField(validator.NotBlank(form.Content), "content", "This field cannot be blank")
+	form.CheckField(validator.PermittedInt(form.Expires, 1, 7, 365), "expires", "This field must equal 1, 7, or 365")
+
+	if !form.Valid() {
+		data := app.newTemplateData(r)
+		data.Form = form
+		app.render(w, http.StatusUnprocessableEntity, "create.tmpl.html", data)
+		return
+	}
+	id, err := app.snippets.Insert(form.Title, form.Content, form.Expires)
 	if err != nil {
 		app.serverError(w, err)
 		return
@@ -71,5 +100,14 @@ func (app *application) snippetCreatePost(w http.ResponseWriter, r *http.Request
 }
 
 func (app *application) snippetCreate(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("Display the form for creating a new snipet..."))
+	data := app.newTemplateData(r)
+
+	// We need to initialize the form data since the template needs it to
+	// render. It's a good place to put default values for the fields too (e.g. Expires = 365 will default that option in the template)
+
+	data.Form = snippetCreateForm{
+		Expires: 365,
+	}
+
+	app.render(w, http.StatusOK, "create.tmpl.html", data)
 }

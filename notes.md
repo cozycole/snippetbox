@@ -365,3 +365,26 @@ go get github.com/justinas/alice@v1
 ## Routers 
 
 We will be using a third party router since the native http.Servemux doesn't support routing based on method (do different things for GET vs POST) or regexp url matching.
+
+# Stateful HTTP - Session Managers
+
+If you want to store session data client side in a cookie, use gorilla/sessions. We are deciding to use alexedwards/scs to store client session data serverside.
+
+We create a table in the db to store session info.
+
+```sql
+CREATE TABLE sessions (
+    token CHAR(43) PRIMARY KEY,
+    data BLOB NOT NULL,
+    expiry TIMESTAMP(6) NOT NULL
+);
+
+CREATE INDEX sessions_expiry_idx ON sessions (expiry);
+```
+
+- token : holds unique session identifier
+- data : data shared between HTTP requests, stored as BLOB (Binary Large OBject)
+- expiry : field will contain an expiry time for the session, where the **scs** package automatically deletes them once expired
+
+A cookie will contain the session id which is used to identify data associated with this session. So we will use the app.sessionManager.LoadAndSave http.Handler as middleware to be executed before and after the router handler sends the response. Before the request URL handler is responded to, it queries the db and gets the data associated with the session id and loads it into the request *Context* object. After the response has been written by the route handler, this middleware will add/update all context data to the *sessions* table in the MySQL db for reference later
+

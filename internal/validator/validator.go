@@ -3,6 +3,7 @@ package validator
 // A package for helper functions for validating form data
 
 import (
+	"net/mail"
 	"strings"
 	"unicode/utf8"
 )
@@ -48,4 +49,13 @@ func PermittedInt(value int, permittedValues ...int) bool {
 		}
 	}
 	return false
+}
+
+func MinChars(value string, numChars int) bool {
+	return utf8.RuneCountInString(value) >= numChars
+}
+
+func ValidEmail(email string) bool {
+	_, err := mail.ParseAddress(email)
+	return err == nil
 }

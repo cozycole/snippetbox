@@ -57,9 +57,10 @@ func (app *application) render(w http.ResponseWriter, status int, page string, d
 	err := ts.ExecuteTemplate(buf, "base", data)
 	if err != nil {
 		app.serverError(w, err)
+		return
 	}
 
-	// If the template is written the the buffer
+	// If the template is written to the buffer
 	w.WriteHeader(status)
 	buf.WriteTo(w)
 }

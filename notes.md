@@ -388,3 +388,11 @@ CREATE INDEX sessions_expiry_idx ON sessions (expiry);
 
 A cookie will contain the session id which is used to identify data associated with this session. So we will use the app.sessionManager.LoadAndSave http.Handler as middleware to be executed before and after the router handler sends the response. Before the request URL handler is responded to, it queries the db and gets the data associated with the session id and loads it into the request *Context* object. After the response has been written by the route handler, this middleware will add/update all context data to the *sessions* table in the MySQL db for reference later
 
+
+# Cross Site Request Forgery (CSRF) Token
+
+The server includes a token in the HTML for all forms that will be sent with a POST request. This makes it so websites outside the origin can't make requests that could change the state of the application (sicne the browser includes the cookies with a request). So if the form doesn't contain a valid CSRF Token within the submitted form, the server won't process the request (400 Bad Request).
+
+Note that the header SameSite=Lax makes it so GET requests can go through with session cookies (meaning that if someone got sent a link to the site within an email, when they follow the link they remain logged in).
+
+SameSite=Strict blocks all cookies for cross origin requests, so the initial Get request they would not be logged in. 

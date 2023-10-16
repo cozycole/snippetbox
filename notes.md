@@ -396,3 +396,9 @@ The server includes a token in the HTML for all forms that will be sent with a P
 Note that the header SameSite=Lax makes it so GET requests can go through with session cookies (meaning that if someone got sent a link to the site within an email, when they follow the link they remain logged in).
 
 SameSite=Strict blocks all cookies for cross origin requests, so the initial Get request they would not be logged in. 
+
+# Optional Go Features
+
+## Embedded files 
+
+You can embed external files into the binary executable itself to make it self-contained

@@ -402,3 +402,9 @@ SameSite=Strict blocks all cookies for cross origin requests, so the initial Get
 ## Embedded files 
 
 You can embed external files into the binary executable itself to make it self-contained
+
+# Testing
+
+In Go, its standard practice to create your tests in *_test.go files which live directly alongside the code you're testing.
+
+The functions within the test file MUST begin with the word Test

@@ -408,3 +408,58 @@ You can embed external files into the binary executable itself to make it self-c
 In Go, its standard practice to create your tests in *_test.go files which live directly alongside the code you're testing.
 
 The functions within the test file MUST begin with the word Test
+
+Run specific tests using the -run flag with a regex to filter the tests
+
+``` bash
+go test -v -run="^TestPing$" ./cmd/web/
+```
+
+If you want the tests to immediately fail after the first failure do:
+
+```bash
+go test -failfast ./cmd/web
+```
+
+You can mark tests to be run in parallel by calling t.Parallel() at the start of the test
+
+```go
+func TestPing(t *testing.T) {
+    t.Parallel()
+    ...
+}
+```
+
+and then you can indicate the GOMAXPROCS to indicate the # of tests that will run simultaneously
+
+```bash
+go test -parallel 4 ./...
+```
+
+You can also do a test for race conditions with
+
+```bash
+go test -race ./cmd/web/
+```
+
+## End-to-end Integrations
+
+For some tests, for instance testing HTML forms, you need to emulate the steps of a user since you'd need to create a valid CSRF token.
+
+Note: The Go tool ignores any directories called testdata, so these scripts will be ignored when compiling your application (it also ignores any directories or files which have names that begin with an _ or . character too)
+
+## Skipping long-running tests
+
+When your tests take a long time, you might decide that you want to skip specific long-running tests under certain circumstances. For example, you might decide to only run your integration tests before committing a change, instead of more frequently during development.
+A common and idiomatic way to skip long-running tests is to use the testing.Short() function to check for the presence of a -short flag in your go test command, and then call the t.Skip() method to skip the test if the flag is present.
+
+### Get % code coverage in tests
+
+```bash
+go test -cover ./...
+```
+OR
+```bash
+go test -coverprofile=/tmp/profile.out ./...
+```
+

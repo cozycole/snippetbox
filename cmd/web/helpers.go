@@ -19,7 +19,12 @@ func (app *application) serverError(w http.ResponseWriter, err error) {
 	// 2 is inputed to look at the second frame for determining the Llongfile/Lshortfile and line number
 	// for the logged output (since we don't want to log the line number here, but wherever it is called)
 	app.errorLog.Output(2, trace)
-	http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+
+	if app.debugMode {
+		http.Error(w, trace, http.StatusInternalServerError)
+	} else {
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+	}
 }
 
 // The clientError helper sends a specific status code and corresponding description

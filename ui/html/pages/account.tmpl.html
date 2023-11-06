@@ -1,0 +1,19 @@
+{{define "title"}}Your Account{{end}}
+
+{{define "main"}}
+<h2>Your Account</h1>
+<table>
+    <tr>
+        <td>Name</td>
+        <td>{{.User.Name}}</td>
+    </tr>
+    <tr>
+        <td>Email</td>
+        <td>{{.User.Email}}</td>
+    </tr>
+    <tr>
+        <td>Created</td>
+        <td>{{.User.Created}}</td>
+    </tr>
+</table>
+{{end}}

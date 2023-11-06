@@ -1,6 +1,8 @@
 package mocks
 
 import (
+	"time"
+
 	"snippetbox.cozycole.net/internal/models"
 )
 
@@ -27,4 +29,16 @@ func (m *UserModel) Exists(id int) (bool, error) {
 	default:
 		return false, nil
 	}
+}
+
+func (m *UserModel) Get(id int) (*models.User, error) {
+	if id == 1 {
+		return &models.User{
+			ID:      id,
+			Name:    "Alice Smith",
+			Email:   "alice@example.com",
+			Created: time.Now(),
+		}, nil
+	}
+	return nil, models.ErrNoRecord
 }

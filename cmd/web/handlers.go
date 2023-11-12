@@ -268,6 +268,81 @@ func (app *application) accountView(w http.ResponseWriter, r *http.Request) {
 	app.render(w, http.StatusOK, "account.tmpl.html", data)
 }
 
+func (app *application) changePassword(w http.ResponseWriter, r *http.Request) {
+	data := app.newTemplateData(r)
+	data.Form = userLoginForm{}
+	app.render(w, http.StatusOK, "changePassword.tmpl.html", data)
+}
+
+type passwordChangeForm struct {
+	CurrentPassword     string `form:"current_pass"`
+	NewPassword         string `form:"new_pass"`
+	ConfirmNewPassword  string `form:"confirm_new_pass"`
+	validator.Validator `form:"-"`
+}
+
+func (app *application) changePasswordPost(w http.ResponseWriter, r *http.Request) {
+	var form passwordChangeForm
+
+	err := app.decodePostForm(r, &form)
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	form.CheckField(validator.NotBlank(form.CurrentPassword), "currentPass", "This field cannot be blank")
+	// So with the generate hash function, it has a max of 72 bytes for the input, so we need
+	// to ensure that it's less than that. We can set a char count on it, but we also would
+	// want to make sure that it's alphanumeric (no crazy multi unicode point graphemes)
+	// Should unicode points beyond 2 bytes even be considered?
+	form.CheckField(
+		validator.MinChars(form.NewPassword, 8) && validator.MaxChars(form.NewPassword, 15),
+		"newPass",
+		"Password must be between 8 and 15 characters long",
+	)
+	form.CheckField(form.NewPassword == form.ConfirmNewPassword, "confirmNewPass", "Passwords do not match")
+
+	if !form.Valid() {
+		data := app.newTemplateData(r)
+		data.Form = form
+		app.render(w, http.StatusUnprocessableEntity, "changePassword.tmpl.html", data)
+		return
+	}
+
+	id := app.sessionManager.Get(r.Context(), "authenticatedUserID").(int)
+	user, err := app.users.Get(id)
+	if err != nil {
+		// not sure what the problem would be if the session has an invalid
+		// authenticatedUserID since this route got past the Authenticate middleware
+		app.serverError(w, err)
+		return
+	}
+
+	id, err = app.users.Authenticate(user.Email, form.CurrentPassword)
+
+	if err != nil {
+		if errors.Is(err, models.ErrInvalidCredentials) {
+			form.AddFieldError("current_pass", "Invalid current password")
+			data := app.newTemplateData(r)
+			data.Form = form
+			app.render(w, http.StatusUnprocessableEntity, "changePassword.tmpl.html", data)
+		} else {
+			app.serverError(w, err)
+		}
+		return
+	}
+
+	// The user is now authorized to make a password change
+	err = app.users.UpdatePassword(id, form.NewPassword)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	app.sessionManager.Put(r.Context(), "flash", "Password successfully updated")
+	http.Redirect(w, r, "/account/view", http.StatusSeeOther)
+}
+
 func ping(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("OK"))
 }
